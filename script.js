@@ -1,6 +1,6 @@
 function loadProject(name) {
   console.log("Sending request to load project:", name); // Debugging log
-  fetch("http://localhost:3000/load", {
+  fetch("https://mgd-games.onrender.com/load", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -34,7 +34,7 @@ function loadProject(name) {
 }
 
 function getAllProjects() {
-  fetch("http://localhost:3000/allProjects", {
+  fetch("https://mgd-games.onrender.com/allProjects", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -62,7 +62,7 @@ function getAllProjects() {
             // Make the project name clickable
             projectElement.addEventListener("click", () => {
               const projectName = projectElement.textContent; // Get the project name
-              window.location.href = `http://localhost:3000/preview/${encodeURIComponent(
+              window.location.href = `https://mgd-games.onrender.com/preview/${encodeURIComponent(
                 projectName
               )}`;
             });
