@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Preview</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      height: 100vh;
+      position: relative;
+    }
+
+    nav {
+      width: 100%;
+      height: 20px;
+      background-color: transparent;
+      border-bottom: 2px solid grey;
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding-bottom: 20px;
+      padding-top: 20px;
+      justify-content: space-between;
+    }
+
+    #title {
+      padding-left: 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #loading-message {
+      font-size: 1.5rem;
+      color: #555;
+      text-align: center;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+
+    iframe {
+      border: none;
+      flex-grow: 1;
+    }
+
+    #iframe-container {
+      display: flex;
+      position: relative;
+      left: 50%;
+      top: 10%;
+      transform: translateX(-50%);
+      width: 60%;
+      height: 70vh;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #fullscreen-btn {
+      position: absolute;
+      top: 92vh;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      z-index: 10;
+    }
+
+    #fullscreen-btn:hover {
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+  </style>
+</head>
+<body>
+  <nav>
+		<h1 id="title" onclick="window.location.href='http://127.0.0.1:5500/index.html'">Game Hoster</h1> <!-- Update with the location of the home page -->
+	</nav>
+  <div id="loading-message">Loading...</div>
+  <div id="iframe-container">
+    <iframe id="project-iframe"></iframe>
+  </div>
+  <button id="fullscreen-btn">Fullscreen</button>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      console.log("Document loaded, extracting project name...");
+
+      const pathParts = window.location.pathname.split("/");
+      const projectName = pathParts[pathParts.length - 1];
+
+      console.log("Project Name:", projectName);
+
+      const iframe = document.getElementById("project-iframe");
+      const loadingMessage = document.getElementById("loading-message");
+      const fullscreenBtn = document.getElementById("fullscreen-btn");
+
+      loadProject(projectName, iframe, loadingMessage);
+
+      fullscreenBtn.addEventListener("click", () => {
+        toggleFullscreen(iframe);
+      });
+    });
+
+    function loadProject(name, iframe, loadingMessage) {
+      console.log("Loading project:", name); // For debugging
+
+      fetch("http://localhost:3000/load", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }), // Send the project name to the server
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            // Hide the loading message
+            loadingMessage.style.display = "none";
+
+            // Inject the Blob URL into the iframe
+            iframe.src = data.blobUrl; // Use the Blob URL returned from the server
+          } else {
+            console.error("Error:", data.message);
+            loadingMessage.textContent = "Failed to load project.";
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          loadingMessage.textContent = "An error occurred while loading the project.";
+        });
+    }
+
+    function toggleFullscreen(iframe) {
+      if (iframe.requestFullscreen) {
+        iframe.requestFullscreen();
+      } else if (iframe.mozRequestFullScreen) { // Firefox
+        iframe.mozRequestFullScreen();
+      } else if (iframe.webkitRequestFullscreen) { // Chrome, Safari
+        iframe.webkitRequestFullscreen();
+      } else if (iframe.msRequestFullscreen) { // IE/Edge
+        iframe.msRequestFullscreen();
+      }
+    }
+  </script>
+</body>
+</html>

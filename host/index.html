@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Host Project</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			background-color: #f4f4f9;
+			color: #333;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			height: 100vh;
+			text-align: center;
+		}
+		.container {
+			background-color: #fff;
+			border-radius: 8px;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+			padding: 30px;
+			width: 100%;
+			max-width: 400px;
+		}
+		h1 {
+			font-size: 24px;
+			margin-bottom: 20px;
+			color: #5b5b5b;
+		}
+		label {
+			display: block;
+			margin: 10px 0 5px;
+			font-size: 14px;
+			color: #666;
+			text-align: left;
+		}
+		input {
+			width: 100%;
+			padding: 10px;
+			margin-bottom: 15px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			font-size: 16px;
+			box-sizing: border-box;
+		}
+		input:focus {
+			border-color: #5e81ac;
+			outline: none;
+		}
+		.button {
+			width: 100%;
+			padding: 12px;
+			background-color: #5e81ac;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			font-size: 16px;
+			cursor: pointer;
+		}
+		.button:hover {
+			background-color: #4e6b8a;
+		}
+		.error {
+			color: red;
+			font-size: 14px;
+			margin-top: 10px;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>Host Your Project</h1>
+		<form id="host-form">
+			<label for="project-name">Project Name</label>
+			<input type="text" id="project-name" name="project-name" placeholder="Enter project name" maxlength="20" required>
+			
+			<label for="project-url">Project URL</label>
+			<input type="url" id="project-url" name="project-url" placeholder="Enter project URL" maxlength="90" required>
+
+			<button type="button" class="button" onclick="hostProject()">Host Project</button>
+			<p class="error" id="error-message" style="display: none;">Please fill in both fields correctly.</p>
+		</form>
+	</div>
+
+	<script>
+		function hostProject() {
+			const projectName = document.getElementById("project-name").value;
+			const projectUrl = document.getElementById("project-url").value;
+			const errorMessage = document.getElementById("error-message");
+
+			// Validate input
+			if (!projectName || !projectUrl || projectName.length > 20 || projectUrl.length > 90) {
+				errorMessage.style.display = "block";
+			} else {
+				errorMessage.style.display = "none"; // Hide error message if all fields are valid
+				
+				// Prepare data to be sent in the request
+				const projectData = {
+					name: projectName,
+					url: projectUrl
+				};
+
+				// Make a POST request to /addEntry to save the project
+				fetch("http://localhost:3000/addEntry", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify(projectData)
+				})
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						alert("Project hosted successfully!");
+					} else {
+						alert(data.message); // Show error message if the project already exists or there is an issue
+					}
+				})
+				.catch(error => {
+					console.error("Error:", error);
+					alert("An error occurred while hosting the project.");
+				});
+			}
+		}
+	</script>
+</body>
+</html>
