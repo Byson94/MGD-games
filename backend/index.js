@@ -9,8 +9,6 @@ const path = require("path");
 
 const app = express();
 
-require("dotenv").config({ path: "./config.env" });
-
 app.use(cors());
 
 app.use(bodyParser.json());
