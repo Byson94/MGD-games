@@ -1,1 +1,1 @@
-npm install express mongoose body-parser cors
+npm install express mongoose body-parser cors axios adm-zip
