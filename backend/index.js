@@ -17,6 +17,7 @@ app.use(bodyParser.json());
 
 mongoose
   .connect(process.env.MONGO_URI, {
+    // This will be saved in render so the api is safe!
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
@@ -117,80 +118,16 @@ app.post("/load", async (req, res) => {
     const downloadUrl = getDriveDownloadUrl(project.fileId);
 
     const zipData = await downloadAndProcessResources(downloadUrl);
-    const zip = new AdmZip(zipData);
-    const zipEntries = zip.getEntries();
 
-    if (!zipEntries.length) {
-      return res.status(404).json({
-        success: false,
-        message: "ZIP file is empty",
-      });
-    }
-
-    const fileMap = {};
-    let indexFile = null;
-
-    zipEntries.forEach((entry) => {
-      if (entry.entryName.endsWith("index.html")) {
-        indexFile = entry;
-      }
-      fileMap[entry.entryName] = entry.getData().toString("utf-8");
-    });
-
-    if (!indexFile) {
-      return res.status(404).json({
-        success: false,
-        message: "index.html not found in the ZIP file",
-      });
-    }
-
-    let indexHtmlContent = fileMap[indexFile.entryName];
-    const resourceRegex = /(?:href|src)="([^"]+?)"/g;
-    const resourceUrls = [];
-    let matchResource;
-
-    // Extract all resource URLs
-    while ((matchResource = resourceRegex.exec(indexHtmlContent)) !== null) {
-      const resourceUrl = matchResource[1];
-      if (
-        !resourceUrls.includes(resourceUrl) &&
-        !resourceUrl.startsWith("data:")
-      ) {
-        resourceUrls.push(resourceUrl);
-      }
-    }
-
-    // Handle resources concurrently
-    const resourcePromises = resourceUrls.map(async (resourceUrl) => {
-      const entryName = Object.keys(fileMap).find((entry) =>
-        entry.includes(resourceUrl)
-      );
-      if (entryName) {
-        const resourceData = fileMap[entryName];
-        const dataUri = `data:text/plain;base64,${Buffer.from(
-          resourceData
-        ).toString("base64")}`;
-        const escapedResourceUrl = resourceUrl.replace(
-          /[-/\\^$*+?.()|[\]{}]/g,
-          "\\$&"
-        );
-        indexHtmlContent = indexHtmlContent.replace(
-          new RegExp(escapedResourceUrl, "g"),
-          dataUri
-        );
-      }
-    });
-
-    await Promise.all(resourcePromises);
-
-    const blobUrl = `data:text/html;base64,${Buffer.from(
-      indexHtmlContent
+    // Convert the ZIP buffer to a base64-encoded data URL
+    const zipBlobUrl = `data:application/zip;base64,${Buffer.from(
+      zipData
     ).toString("base64")}`;
 
     res.status(200).json({
       success: true,
-      message: "Project loaded and rendered successfully!",
-      blobUrl: blobUrl,
+      message: "Project loaded successfully!",
+      blobUrl: zipBlobUrl,
     });
   } catch (err) {
     console.error("Error in /load route:", err);

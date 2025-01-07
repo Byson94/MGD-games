@@ -91,66 +91,119 @@
   </div>
   <button id="fullscreen-btn">Fullscreen</button>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       console.log("Document loaded, extracting project name...");
-
+  
       const pathParts = window.location.pathname.split("/");
       const projectName = pathParts[pathParts.length - 1];
-
+  
       console.log("Project Name:", projectName);
-
+  
       const iframe = document.getElementById("project-iframe");
       const loadingMessage = document.getElementById("loading-message");
       const fullscreenBtn = document.getElementById("fullscreen-btn");
-
+  
       loadProject(projectName, iframe, loadingMessage);
-
+  
       fullscreenBtn.addEventListener("click", () => {
         toggleFullscreen(iframe);
       });
     });
-
-    function loadProject(name, iframe, loadingMessage) {
-      console.log("Loading project:", name); // For debugging
-
-      fetch("https://mgd-games.onrender.com/load", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name }), // Send the project name to the server
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
-            // Hide the loading message
-            loadingMessage.style.display = "none";
-
-            // Inject the Blob URL into the iframe
-            iframe.src = data.blobUrl; // Use the Blob URL returned from the server
-          } else {
-            console.error("Error:", data.message);
-            loadingMessage.textContent = "Failed to load project.";
-          }
-        })
-        .catch((error) => {
-          console.error("Error:", error);
-          loadingMessage.textContent = "An error occurred while loading the project.";
+  
+    async function loadProject(name, iframe, loadingMessage) {
+      console.log("Loading project:", name);
+  
+      try {
+        const response = await fetch("https://mgd-games.onrender.com/load", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name }),
         });
+  
+        const data = await response.json();
+  
+        if (!data.success) {
+          console.error("Error:", data.message);
+          loadingMessage.textContent = "Failed to load project.";
+          return;
+        }
+  
+        loadingMessage.textContent = "Processing project files...";
+        const zipBlob = await fetch(data.blobUrl).then((res) => res.blob());
+        const zip = await JSZip.loadAsync(zipBlob);
+  
+        console.log("ZIP loaded:", zip);
+  
+        // Create a virtual filesystem to store extracted files
+        const fileMap = {};
+  
+        // Extract all files from the ZIP
+        await Promise.all(
+          Object.keys(zip.files).map(async (filename) => {
+            const fileData = await zip.files[filename].async("blob");
+            fileMap[filename] = URL.createObjectURL(fileData); // Store files as Blob URLs
+          })
+        );
+  
+        console.log("Extracted files:", fileMap);
+  
+        // Serve the `index.html` and remap its resources
+        const indexHtmlPath = Object.keys(fileMap).find((name) =>
+          name.endsWith("index.html")
+        );
+  
+        if (!indexHtmlPath) {
+          loadingMessage.textContent = "index.html not found in project.";
+          return;
+        }
+  
+        const indexHtmlBlob = await zip.files[indexHtmlPath].async("text");
+        const updatedIndexHtml = rewriteResourceUrls(indexHtmlBlob, fileMap);
+  
+        const indexHtmlBlobUrl = URL.createObjectURL(
+          new Blob([updatedIndexHtml], { type: "text/html" })
+        );
+  
+        // Load the updated index.html into the iframe
+        loadingMessage.style.display = "none";
+        iframe.src = indexHtmlBlobUrl;
+      } catch (error) {
+        console.error("Error:", error);
+        loadingMessage.textContent = "An error occurred while loading the project.";
+      }
     }
-
+  
+    function rewriteResourceUrls(indexHtml, fileMap) {
+      // Rewrite resource URLs in index.html to use Blob URLs
+      return indexHtml.replace(
+        /(?:href|src)="([^"]+)"/g,
+        (match, url) => {
+          const mappedUrl = Object.keys(fileMap).find((key) =>
+            key.endsWith(url)
+          );
+          return mappedUrl
+            ? match.replace(url, fileMap[mappedUrl])
+            : match; // Replace with Blob URL or keep original
+        }
+      );
+    }
+  
     function toggleFullscreen(iframe) {
       if (iframe.requestFullscreen) {
         iframe.requestFullscreen();
-      } else if (iframe.mozRequestFullScreen) { // Firefox
+      } else if (iframe.mozRequestFullScreen) {
         iframe.mozRequestFullScreen();
-      } else if (iframe.webkitRequestFullscreen) { // Chrome, Safari
+      } else if (iframe.webkitRequestFullscreen) {
         iframe.webkitRequestFullscreen();
-      } else if (iframe.msRequestFullscreen) { // IE/Edge
+      } else if (iframe.msRequestFullscreen) {
         iframe.msRequestFullscreen();
       }
     }
   </script>
+  
 </body>
 </html>
