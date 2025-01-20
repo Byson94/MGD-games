@@ -95,18 +95,17 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       console.log("Document loaded, extracting project name...");
-  
       const pathParts = window.location.pathname.split("/");
       const projectName = pathParts[pathParts.length - 1];
-  
+    
       console.log("Project Name:", projectName);
-  
+    
       const iframe = document.getElementById("project-iframe");
       const loadingMessage = document.getElementById("loading-message");
       const fullscreenBtn = document.getElementById("fullscreen-btn");
-  
+    
       loadProject(projectName, iframe, loadingMessage);
-  
+    
       fullscreenBtn.addEventListener("click", () => {
         toggleFullscreen(iframe);
       });
@@ -114,7 +113,7 @@
   
     async function loadProject(name, iframe, loadingMessage) {
       console.log("Loading project:", name);
-  
+    
       try {
         const response = await fetch("https://mgd-games.onrender.com/load", {
           method: "POST",
@@ -123,54 +122,54 @@
           },
           body: JSON.stringify({ name }),
         });
-  
+    
         const data = await response.json();
-  
+    
         if (!data.success) {
           console.error("Error:", data.message);
           loadingMessage.textContent = "Failed to load project.";
           return;
         }
-  
+    
         loadingMessage.textContent = "Processing project files...";
         const zipBlob = await fetch(data.blobUrl).then((res) => res.blob());
         const zip = await JSZip.loadAsync(zipBlob);
-  
+    
         console.log("ZIP loaded:", zip);
-  
-        // Create a virtual filesystem to store extracted files
+    
+        // Create a virtual filesystem to store extracted files in memory
         const fileMap = {};
-  
+    
         // Extract all files from the ZIP
         await Promise.all(
           Object.keys(zip.files).map(async (filename) => {
-            const fileData = await zip.files[filename].async("blob");
-            fileMap[filename] = URL.createObjectURL(fileData); // Store files as Blob URLs
+            const fileData = await zip.files[filename].async("text"); // Extract as text (HTML, CSS, JS)
+            fileMap[filename] = fileData; // Store text-based files
           })
         );
-  
+    
         console.log("Extracted files:", fileMap);
-  
+    
         // Serve the `index.html` and remap its resources
         const indexHtmlPath = Object.keys(fileMap).find((name) =>
           name.endsWith("index.html")
         );
-  
+    
         if (!indexHtmlPath) {
           loadingMessage.textContent = "index.html not found in project.";
           return;
         }
-  
-        const indexHtmlBlob = await zip.files[indexHtmlPath].async("text");
-        const updatedIndexHtml = rewriteResourceUrls(indexHtmlBlob, fileMap);
-  
-        const indexHtmlBlobUrl = URL.createObjectURL(
-          new Blob([updatedIndexHtml], { type: "text/html" })
-        );
-  
-        // Load the updated index.html into the iframe
+    
+        const indexHtml = fileMap[indexHtmlPath];
+        const updatedIndexHtml = rewriteResourceUrls(indexHtml, fileMap);
+    
+        // Create a new document in the iframe and inject the HTML directly
+        const iframeDoc = iframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(updatedIndexHtml); // Directly write HTML content into the iframe
+        iframeDoc.close();
+    
         loadingMessage.style.display = "none";
-        iframe.src = indexHtmlBlobUrl;
       } catch (error) {
         console.error("Error:", error);
         loadingMessage.textContent = "An error occurred while loading the project.";
@@ -178,7 +177,7 @@
     }
   
     function rewriteResourceUrls(indexHtml, fileMap) {
-      // Rewrite resource URLs in index.html to use Blob URLs
+      // Rewrite resource URLs in index.html to point to in-memory resources
       return indexHtml.replace(
         /(?:href|src)="([^"]+)"/g,
         (match, url) => {
@@ -186,8 +185,8 @@
             key.endsWith(url)
           );
           return mappedUrl
-            ? match.replace(url, fileMap[mappedUrl])
-            : match; // Replace with Blob URL or keep original
+            ? match.replace(url, `data:text/html;charset=utf-8,${encodeURIComponent(fileMap[mappedUrl])}`)
+            : match; // Keep original URL if not found
         }
       );
     }
@@ -204,6 +203,7 @@
       }
     }
   </script>
+  
   
 </body>
 </html>
