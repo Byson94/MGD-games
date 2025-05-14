@@ -1,3 +1,3 @@
 # MGD Games
 
-A simple game hostinges website
+A simple game hosting website
